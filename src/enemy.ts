@@ -3,6 +3,7 @@ import enemyOne from './assets/enemy_1.png';
 import enemyTwo from './assets/enemy_2.png';
 import {cosBetweenTwoPoints, sinBetweenTwoPoints} from './utilities.ts';
 import {Point} from './projectile.ts';
+import {Particle} from './particle.ts';
 
 export class Enemy {
   radius: number = 15;
@@ -13,7 +14,8 @@ export class Enemy {
   imageHeight: number = 60;
   imageTick: number = 0;
   velocity?: Point;
-  health: number = 1;
+  enemyType = Math.random() > 0.8 ? 2 : 1;
+  health: number = this.enemyType;
 
   constructor(
     public canvasWidth: number,
@@ -35,7 +37,7 @@ export class Enemy {
     }
 
     this.image = new Image();
-    this.image.src = Math.random() < 0.5 ? enemyOne : enemyTwo;
+    this.image.src = this.enemyType === 2 ? enemyTwo : enemyOne;
   }
 
   drawImg() {
@@ -75,5 +77,11 @@ export class Enemy {
     };
     this.x += this.velocity.x;
     this.y += this.velocity.y;
+  }
+
+  createExplosion(particles: Particle[]) {
+    for (let i = 0; i < 50; i++) {
+      particles.push(new Particle(this.x, this.y, this.context));
+    }
   }
 }

@@ -3,6 +3,7 @@ import {Player} from './player.ts';
 import {Projectile} from './projectile.ts';
 import {Enemy} from './enemy.ts';
 import {distanceBetweenPoints} from './utilities.ts';
+import {Particle} from './particle.ts';
 
 const canvas = document.querySelector('canvas');
 const context = canvas?.getContext('2d');
@@ -17,10 +18,17 @@ if (!context) {
 
 canvas.width = document.documentElement.clientWidth;
 canvas.height = document.documentElement.clientHeight;
+const wastedElement: HTMLImageElement | null = document.querySelector('.wasted');
+const scoreElement = document.querySelector('#score');
 
 let player: Player;
 let projectiles: Projectile[] = [];
 let enemies: Enemy[] = [];
+let particles: Particle[] = [];
+let animationId: number;
+let spawnIntervalId: number;
+let countIntervalId: number;
+let score: number = 0;
 
 const startGame = () => {
   init();
@@ -54,33 +62,78 @@ const projectileInsideWindow = (projectile: Projectile) => {
   );
 };
 
+const removeProjectileByIndex = (index: number) => {
+  projectiles.splice(index, 1);
+};
+
+const increaseScore = () => {
+  score += 250;
+  if (scoreElement) {
+    scoreElement.innerHTML = score.toString();
+  }
+};
+
 const checkHittingEnemy = (enemy: Enemy) => {
-  projectiles.some((projectile) => {
+  projectiles.some((projectile, index) => {
     const distance = distanceBetweenPoints(projectile.currentPosition, enemy);
     if (distance - enemy.radius - projectile.radius > 0) return false;
 
-    // removeProjctileByIndex(index);
+    removeProjectileByIndex(index);
     enemy.health--;
+
+    if (enemy.health < 1) {
+      increaseScore();
+      enemy.createExplosion(particles);
+    }
+
     return true;
   });
 };
 
+const checkHittingPlayer = (enemy: Enemy) => {
+  const distance = distanceBetweenPoints(player, enemy);
+  return distance - enemy.radius - player.radius < 0;
+};
+
+const spawnEnemies = () => {
+  let countOfSpawnEnemies = 1;
+
+  countIntervalId = setInterval(() => countOfSpawnEnemies++, 30000);
+  spawnIntervalId = setInterval(() => spawnCountEnemies(countOfSpawnEnemies), 1000);
+};
+
+const spawnCountEnemies = (count: number) => {
+  for (let i = 0; i < count; i++) {
+    enemies.push(new Enemy(canvas.width, canvas.height, context, player));
+  }
+};
+
 const animate = () => {
-  requestAnimationFrame(animate);
+  animationId = requestAnimationFrame(animate);
 
   context.clearRect(0, 0, canvas.width, canvas.height);
 
   if (player.isImageLoaded) {
+    particles = particles.filter((particle) => particle.alpha > 0);
     projectiles = projectiles.filter(projectileInsideWindow);
     enemies.forEach((enemy) => checkHittingEnemy(enemy));
+    enemies = enemies.filter((enemy) => enemy.health > 0);
+    const isGameOver = enemies.some(checkHittingPlayer);
+
+    if (isGameOver) {
+      if (wastedElement) {
+        wastedElement.style.display = 'block';
+      }
+      clearInterval(countIntervalId);
+      clearInterval(spawnIntervalId);
+      cancelAnimationFrame(animationId);
+    }
+
+    particles.forEach((particle) => particle.update());
     projectiles.forEach((projectile) => projectile.update());
     player.update();
     enemies.forEach((enemy) => enemy.update());
   }
-};
-
-const spawnEnemies = () => {
-  enemies.push(new Enemy(canvas.width, canvas.height, context, player));
 };
 
 startGame();
